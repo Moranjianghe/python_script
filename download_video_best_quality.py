@@ -29,23 +29,10 @@ def download_video(url, cookie_file=None, cookie_content=None):
         print("下載成功！")
     except yt_dlp.DownloadError as e:
         print(f"下載失敗: {e}")
-        print("建議：請確保 yt-dlp 是最新版本（運行 yt-dlp -U），並檢查 cookie 是否有效。")
         return False
     finally:
         if temp_cookie_file and os.path.exists(temp_cookie_file):
             os.unlink(temp_cookie_file)
-    return True
-
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            print(f"正在下載: {info['title']}")
-            print(f"格式: {info['format_id']} - {info['resolution']}")
-            ydl.download([url])
-        print("下載成功！")
-    except yt_dlp.DownloadError as e:
-        print(f"下載失敗: {e}")
-        return False
     return True
 
 if __name__ == "__main__":
@@ -62,11 +49,14 @@ if __name__ == "__main__":
             if cookie_file:
                 success = download_video(url, cookie_file=cookie_file)
         elif choice == '2':
-            print("請輸入 cookie 內容，每行結束後按 Enter，輸入空行結束：")
+            print("請貼上 Netscape 格式 cookie，輸入單獨一行 EOF 結束：")
             lines = []
             while True:
-                line = input()
-                if line == '':
+                try:
+                    line = input()
+                except EOFError:
+                    break
+                if line.strip().upper() == 'EOF':
                     break
                 lines.append(line)
             cookie_content = '\n'.join(lines)
@@ -75,4 +65,4 @@ if __name__ == "__main__":
         else:
             print("跳過 cookie，下載失敗。")
         if not success and choice in ['1', '2']:
-            print("仍然無法下載，請檢查 URL 或 cookie。")
+            print("仍然無法下載")
