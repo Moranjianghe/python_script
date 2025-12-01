@@ -20,6 +20,13 @@ except Exception:
 else:
     HAS_JXL = True
 
+try:
+    import pillow_heif  # type: ignore
+except Exception:
+    HAS_HEIC = False
+else:
+    HAS_HEIC = True
+
 SUPPORTED_INPUT_EXTS = {
     ".jpg",
     ".jpeg",
@@ -31,6 +38,8 @@ SUPPORTED_INPUT_EXTS = {
     ".webp",
     ".avif",
     ".jxl",
+    ".heic",
+    ".heif",
 }
 FORMAT_MAP = {
     "jpg": "JPEG",
@@ -43,6 +52,8 @@ FORMAT_MAP = {
     "webp": "WEBP",
     "avif": "AVIF",
     "jxl": "JXL",
+    "heic": "HEIC",
+    "heif": "HEIF",
 }
 
 
@@ -114,6 +125,12 @@ def prompt_save_options(target_format: str) -> dict[str, object]:
         else:
             quality = prompt_int("請輸入 JPEG XL 畫質 (0-100，預設75): ", 75, 0, 100)
             options["quality"] = quality
+    elif fmt in {"heic", "heif"}:
+        if prompt_yes_no("是否使用 HEIC/HEIF 無損模式？[y/N]: "):
+            options["lossless"] = True
+        else:
+            quality = prompt_int("請輸入 HEIC/HEIF 畫質 (0-100，預設80): ", 80, 0, 100)
+            options["quality"] = quality
     elif fmt == "png":
         compress_level = prompt_int("請輸入 PNG 壓縮等級 (0-9，預設6): ", 6, 0, 9)
         options["compress_level"] = compress_level
@@ -139,11 +156,18 @@ def convert_image(
 
     save_format = FORMAT_MAP[target_format]
 
+    if source.suffix.lower() in {".heic", ".heif"} and not HAS_HEIC:
+        print("❌ 轉換失敗: 需要安裝 pillow-heif 才能讀取 HEIC/HEIF 格式")
+        return False
+
     if target_format == "avif" and not HAS_AVIF:
         print("❌ 轉換失敗: 需要安裝 pillow-avif-plugin 才能輸出 AVIF 格式")
         return False
     if target_format == "jxl" and not HAS_JXL:
         print("❌ 轉換失敗: 需要安裝 pillow-jpegxl-plugin 才能輸出 JPEG XL 格式")
+        return False
+    if target_format in {"heic", "heif"} and not HAS_HEIC:
+        print("❌ 轉換失敗: 需要安裝 pillow-heif 才能輸出 HEIC/HEIF 格式")
         return False
 
     save_kwargs = get_default_save_kwargs(target_format)
@@ -168,6 +192,8 @@ def main() -> None:
         print("ℹ️ 如需處理 AVIF，請先安裝 pillow-avif-plugin")
     if not HAS_JXL:
         print("ℹ️ 如需處理 JPEG XL，請先安裝 pillow-jpegxl-plugin")
+    if not HAS_HEIC:
+        print("ℹ️ 如需處理 HEIC/HEIF，請先安裝 pillow-heif")
 
     # 取得來源路徑
     raw_path = input("請輸入檔案或資料夾路徑（預設為當前資料夾 .）: ").strip() or "."
@@ -210,6 +236,8 @@ def main() -> None:
         print("⚠️ 偵測到 AVIF 檔案，但尚未安裝 pillow-avif-plugin，可能無法成功讀取")
     if not HAS_JXL and any(img.suffix.lower() == ".jxl" for img in images):
         print("⚠️ 偵測到 JPEG XL 檔案，但尚未安裝 pillow-jpegxl-plugin，可能無法成功讀取")
+    if not HAS_HEIC and any(img.suffix.lower() in {".heic", ".heif"} for img in images):
+        print("⚠️ 偵測到 HEIC/HEIF 檔案，但尚未安裝 pillow-heif，可能無法成功讀取")
 
     print(f"找到 {len(images)} 個檔案，開始轉換...")
 
