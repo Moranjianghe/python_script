@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Open-Meteo 綜合氣象數據展示工具 (Rich 正體中文版)"""
 
+import argparse
 import requests
 from datetime import datetime
 from urllib3.util.ssl_ import create_urllib3_context
@@ -45,12 +46,12 @@ def 建立安全連線():
     return session
 
 
-def 獲取氣象數據():
+def 獲取氣象數據(緯度值=緯度, 經度值=經度, 預報天數值=預報天數):
     """從 Open-Meteo API 獲取綜合氣象資料"""
     url = "https://api.open-meteo.com/v1/forecast"
     params = {
-        "latitude": 緯度,
-        "longitude": 經度,
+        "latitude": 緯度值,
+        "longitude": 經度值,
         "daily": ["sunrise", "sunset", "temperature_2m_max",
                   "temperature_2m_min", "precipitation_sum",
                   "weathercode", "wet_bulb_temperature_2m_max",
@@ -58,12 +59,30 @@ def 獲取氣象數據():
         "hourly": ["wet_bulb_temperature_2m", "temperature_2m",
                    "relativehumidity_2m", "weathercode"],
         "timezone": "auto",
-        "forecast_days": 預報天數
+        "forecast_days": 預報天數值
     }
     session = 建立安全連線()
     resp = session.get(url, params=params, timeout=15)
     resp.raise_for_status()
     return resp.json()
+
+
+def 解析命令列參數():
+    """解析命令列中的查詢座標與預報天數"""
+    parser = argparse.ArgumentParser(description="查詢指定經緯度的 Open-Meteo 天氣")
+    parser.add_argument("--latitude", "--lat", type=float, default=緯度,
+                        help=f"緯度，預設為 {緯度}")
+    parser.add_argument("--longitude", "--lon", type=float, default=經度,
+                        help=f"經度，預設為 {經度}")
+    parser.add_argument("--forecast-days", type=int, default=預報天數,
+                        choices=range(1, 17), metavar="1-16",
+                        help=f"預報天數，預設為 {預報天數}")
+    args = parser.parse_args()
+    if not -90 <= args.latitude <= 90:
+        parser.error("latitude 必須介於 -90 與 90 之間")
+    if not -180 <= args.longitude <= 180:
+        parser.error("longitude 必須介於 -180 與 180 之間")
+    return args
 
 
 def 渲染元資訊面板(data):
@@ -166,7 +185,8 @@ def 渲染逐時濕球表格(data):
 
 if __name__ == "__main__":
     try:
-        data = 獲取氣象數據()
+        args = 解析命令列參數()
+        data = 獲取氣象數據(args.latitude, args.longitude, args.forecast_days)
 
         meta_panel = 渲染元資訊面板(data)
         daily_table = 渲染每日預報表格(data)
